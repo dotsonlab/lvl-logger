@@ -1,11 +1,11 @@
 #include "LowPower.h"
 #include<SPIFlash.h>
 
-int DataPage = 0;                // initial SPI flash storage page
+int16_t DataPage = 0;                // initial SPI flash storage page
 uint32_t prevOffset=0;
 int PageCorrectedprevOffset;
 uint32_t PageCorrectedprevOffsetB;
-uint32_t Offset;
+uint8_t Offset;
 int PageCorrectedOffset;
 uint32_t PageCorrectedOffsetB;
 
@@ -71,30 +71,29 @@ void USreading() {
 }
 
 void StoreData() {
-    //flash.eraseSector(DataPage, 0);
-    
+
     prevOffset = Offset;
-    PageCorrectedprevOffset = Offset - (254 * DataPage);
-    PageCorrectedprevOffsetB = PageCorrectedprevOffset;    
-    Offset = flash.getAddress(sizeof(short));
-    PageCorrectedOffset = Offset - (254 * DataPage) - 2;
-    PageCorrectedOffsetB = PageCorrectedOffset;
-    DataPage = PageCorrectedprevOffsetB/(254);
+    Offset++;
+    Offset++;
+    if(Offset > 252) {
+      Offset = 0;
+      DataPage = 1;
+    }
+    //Offset = flash.getAddress(sizeof(short));
     
-    flash.writeShort(DataPage, PageCorrectedOffsetB, average);
+    flash.writeShort(DataPage, Offset, average);
     
     Serial.print("Writing ");
     Serial.print(average);
     Serial.print(" to page ");
     Serial.print(DataPage);
     Serial.print(" and offset ");
-    Serial.print(PageCorrectedOffsetB);
-    Serial.print("(");Serial.print(Offset);Serial.print(")");
+    Serial.print(Offset);
     Serial.println(".");
 
     Serial.print("Last stored data was ");
-    Serial.print(flash.readShort(PageCorrectedOffsetB,DataPage));
+    Serial.print(flash.readShort(DataPage,Offset));
     Serial.print(" stored at offset ");
-    Serial.println(PageCorrectedOffsetB);
+    Serial.println(Offset);
 
     }
