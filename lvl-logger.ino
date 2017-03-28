@@ -2,9 +2,12 @@
 #include<SPIFlash.h>
 
 int DataPage = 0;                // initial SPI flash storage page
-byte DataOffset = 1;              // initial SPI flash storage offset
-byte prevOffset=1;
-byte Offset;
+uint32_t prevOffset=0;
+int PageCorrectedprevOffset;
+uint32_t PageCorrectedprevOffsetB;
+uint32_t Offset;
+int PageCorrectedOffset;
+uint32_t PageCorrectedOffsetB;
 
 SPIFlash flash(8);
 
@@ -25,13 +28,13 @@ void setup() {
   pinMode(USpower,OUTPUT);
   flash.begin();
   flash.eraseChip();
+  Offset = flash.getAddress(sizeof(short));
 }
 
 void loop() {
    Serial.flush();
-   //LowPower.idle(SLEEP_8S, ADC_OFF, TIMER2_OFF, TIMER1_OFF, TIMER0_OFF, SPI_OFF, USART0_OFF, TWI_OFF);
    // Enter power down state for 8 s with ADC and BOD module disabled
-   LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);
+   // LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);
    USreading();
    StoreData();
 }
@@ -68,26 +71,30 @@ void USreading() {
 }
 
 void StoreData() {
-    flash.eraseSector(DataPage, 0);
-    flash.writeShort(DataPage, DataOffset, average);
+    //flash.eraseSector(DataPage, 0);
+    
+    prevOffset = Offset;
+    PageCorrectedprevOffset = Offset - (254 * DataPage);
+    PageCorrectedprevOffsetB = PageCorrectedprevOffset;    
+    Offset = flash.getAddress(sizeof(short));
+    PageCorrectedOffset = Offset - (254 * DataPage) - 2;
+    PageCorrectedOffsetB = PageCorrectedOffset;
+    DataPage = PageCorrectedprevOffsetB/(254);
+    
+    flash.writeShort(DataPage, PageCorrectedOffsetB, average);
+    
     Serial.print("Writing ");
     Serial.print(average);
     Serial.print(" to page ");
     Serial.print(DataPage);
     Serial.print(" and offset ");
-    Serial.print(DataOffset);
+    Serial.print(PageCorrectedOffsetB);
+    Serial.print("(");Serial.print(Offset);Serial.print(")");
     Serial.println(".");
 
     Serial.print("Last stored data was ");
-    Serial.print(flash.readShort(DataPage,prevOffset));
+    Serial.print(flash.readShort(PageCorrectedOffsetB,DataPage));
     Serial.print(" stored at offset ");
-    Serial.println(prevOffset);
-   
-    //while (!flash.eraseSector(DataPage, 0));
-    
-    if(DataOffset <= 255) {
-        prevOffset = DataOffset;
-        DataOffset = flash.getAddress(sizeof(average));
-        Serial.println(DataOffset);
+    Serial.println(PageCorrectedOffsetB);
+
     }
-}
