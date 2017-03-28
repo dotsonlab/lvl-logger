@@ -1,15 +1,14 @@
 #include "LowPower.h"
 #include<SPIFlash.h>
 
-int16_t DataPage = 0;                // initial SPI flash storage page
-uint32_t prevOffset=0;
-int PageCorrectedprevOffset;
-uint32_t PageCorrectedprevOffsetB;
-uint8_t Offset;
-int PageCorrectedOffset;
-uint32_t PageCorrectedOffsetB;
+#define SERIAL_BAUD      115200
+#define LED           9 // Moteinos have LEDs on D9
+#define FLASH_SS      8 // and FLASH SS on D8
 
-SPIFlash flash(8);
+uint32_t prevOffset=0;
+uint32_t Offset=0;
+
+SPIFlash flash(FLASH_SS, 0xEF30);
 
 int USpower = 7;
 int USoutput = 5;
@@ -21,14 +20,25 @@ int readings[numReadings];      // the readings from the analog input
 int readIndex = 0;              // the index of the current reading
 int total = 0;                  // the running total
 int prevTotal = 0;              // prior total
-short average = 0;                // the average
+uint8_t average = 0;                // the average
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(SERIAL_BAUD);
+  Serial.print("Start...");
+
+  if (flash.initialize())
+  {
+    Serial.println("Init OK!");
+    Blink(LED, 20, 10);
+  }
+  else
+    Serial.println("Init FAIL!");
+  
+  delay(1000);
+
   pinMode(USpower,OUTPUT);
-  flash.begin();
-  flash.eraseChip();
-  Offset = flash.getAddress(sizeof(short));
+  flash.chipErase();
+
 }
 
 void loop() {
@@ -37,6 +47,7 @@ void loop() {
    // LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);
    USreading();
    StoreData();
+   
 }
 
 void USreading() {
@@ -58,7 +69,7 @@ void USreading() {
       prevTotal = total;
     }
     // calculate the average:;
-    average = total / numReadings;
+    average = total / numReadings / 4;
     //Serial.println(average);
     
     // ...wrap around to the beginning and restart average:
@@ -74,26 +85,30 @@ void StoreData() {
 
     prevOffset = Offset;
     Offset++;
-    Offset++;
-    if(Offset > 252) {
-      Offset = 0;
-      DataPage = 1;
-    }
-    //Offset = flash.getAddress(sizeof(short));
     
-    flash.writeShort(DataPage, Offset, average);
+    flash.writeByte(Offset, average);
     
     Serial.print("Writing ");
     Serial.print(average);
-    Serial.print(" to page ");
-    Serial.print(DataPage);
-    Serial.print(" and offset ");
+    Serial.print(" to offset ");
     Serial.print(Offset);
     Serial.println(".");
 
     Serial.print("Last stored data was ");
-    Serial.print(flash.readShort(DataPage,Offset));
+    Serial.print(flash.readByte(Offset));
     Serial.print(" stored at offset ");
-    Serial.println(Offset);
+    Serial.print(Offset);    
+    Serial.println(".");
 
-    }
+}
+
+void Blink(byte PIN, int DELAY_MS, byte loops) {
+  pinMode(PIN, OUTPUT);
+  while (loops--)
+  {
+    digitalWrite(PIN,HIGH);
+    delay(DELAY_MS);
+    digitalWrite(PIN,LOW);
+    delay(DELAY_MS);  
+  }
+}
