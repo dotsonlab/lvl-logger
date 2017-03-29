@@ -71,18 +71,23 @@ void loop() {
       radio.sendACK();
       Serial.print(" - ACK sent.");
 
-      // When a node requests an ACK, respond to the ACK
-      // and also send a packet requesting an ACK (every 3rd one only)
-      // This way both TX/RX NODE functions are tested on 1 end at the GATEWAY
+       //When a node requests an ACK, respond to the ACK
+       //and also send a packet requesting an ACK (every 3rd one only)
+       //This way both TX/RX NODE functions are tested on 1 end at the GATEWAY
       if (ackCount++%3==0)
       {
+        //fill in the struct with new values
+        theData.cmd = 'A';
+        //theData.uptime = millis();
+        theData.volume = 0;
         Serial.print(" Pinging node ");
         Serial.print(theNodeID);
         Serial.print(" - ACK...");
         delay(3); //need this when sending right after reception .. ?
-        if (radio.sendWithRetry(theNodeID, "ACK TEST", 8, 0))  // 0 = only 1 attempt, no retries
+        if (radio.sendWithRetry(theNodeID, (const void*)(&theData), sizeof(theData), 0))  // 0 = only 1 attempt, no retries
           Serial.print("ok!");
         else Serial.print("nothing");
+        Serial.println();
       }
     }
     Serial.println();
