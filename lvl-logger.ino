@@ -11,15 +11,12 @@ int USoutput = 5;
 SPIFlash flash(FLASH_SS, 0xEF30);
 //Moteino R4 equipped with 2048 pages of 256 byte storage locations (0 - 255). Offsets from 0 - 524288 available
 
-
-
-
 const int numReadings = 25;
 int readings[numReadings];      // the readings from the analog input
 int readIndex = 0;              // the index of the current reading
 int total = 0;                  // the running total
 int prevTotal = 0;              // prior total
-uint8_t average = 0;                // the average
+uint8_t average = 0;            // the average
 
 uint8_t DataInterval=15;        //0 - 255 minutes (whole numbers only)
 uint32_t DataOffset=0;          //need to initialize this in setup by looking in flash memory
