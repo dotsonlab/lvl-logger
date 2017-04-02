@@ -5,13 +5,20 @@
 #define LED           9 // Moteinos have LEDs on D9
 #define FLASH_SS      8 // and FLASH SS on D8
 
+unsigned long previousMillis = 0;     // will store last time counter was updated
+const long interval = 5000;           // interval at which to sleep (milliseconds)
+
+
 int USpower = 7;
 int USoutput = 5;
+boolean USread = false;
+
 
 SPIFlash flash(FLASH_SS, 0xEF30);
 //Moteino R4 equipped with 2048 pages of 256 byte storage locations (0 - 255). Offsets from 0 - 524288 available
+boolean DataStored = false;
 
-const int numReadings = 25;
+const int numReadings = 10;
 int readings[numReadings];      // the readings from the analog input
 int readIndex = 0;              // the index of the current reading
 int total = 0;                  // the running total
@@ -37,11 +44,31 @@ void setup() {
     Serial.println("Init FAIL!");
 
   pinMode(USpower,OUTPUT);
+  getOffset();
+  if(DataOffset > 0) {
+     PrevDataOffset = DataOffset - 1;
+  }
 
 }
 
 void loop() {
-  // LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);
+  unsigned long currentMillis = millis();
+  
+  if(USread == false && DataStored == false) {
+    USreading();
+    delay(500);
+    if(USread == true && DataStored == false) {
+      StoreData();
+      delay(500);
+    } 
+  }
+  
+  if(USread == true && DataStored == true && currentMillis - previousMillis >= interval) {
+    LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);
+    USread = false;
+    DataStored = false;
+    previousMillis = currentMillis;
+  }
 
 }
 
@@ -74,7 +101,7 @@ void USreading() {
       prevTotal = total;
     }
     // calculate the average:;
-    average = total / numReadings / 4;
+    average = total / numReadings / 4;  //divided by 4 to make value a 1 byte number (0-255)
     //Serial.println(average);
     
     // ...wrap around to the beginning and restart average:
@@ -82,16 +109,13 @@ void USreading() {
     total=0;
     prevTotal=0;
   }
-  delay(5);        // delay in between reads for stability
   digitalWrite(USpower, LOW);
+  USread = !USread;
 }
 
 void StoreData() {
 
-    PrevDataOffset = DataOffset;
-    DataOffset++;
 
-    //need to update table of contents here by writing updated values to flash memory
     
     flash.writeByte(DataOffset, average);
     
@@ -106,6 +130,9 @@ void StoreData() {
     Serial.print(" stored at offset ");
     Serial.print(PrevDataOffset);    
     Serial.println(".");
+    DataStored = !DataStored;
+    PrevDataOffset = DataOffset;
+    DataOffset++;
 
 }
 
@@ -118,6 +145,7 @@ void serialEvent() {   //This interrupt will trigger when the data coming from t
       flash.chipErase();
       while(flash.busy());
       Serial.println("Flash formatted for datalogging.");
+      getOffset();
       }
 
     if (incomingCMD == String("WriteData")) { //0-9
@@ -132,7 +160,7 @@ void serialEvent() {   //This interrupt will trigger when the data coming from t
     if (incomingCMD == String("ReadChip")) { //d=dump flash area
       Serial.println("Reading flash memory content:");
       getOffset();
-      long timestamp = DataInterval;
+      long timestamp = 0;
       long counter = 0;
       while(counter<DataOffset){
         Serial.print("Time Stamp (min):\t");
