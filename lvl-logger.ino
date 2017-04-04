@@ -9,7 +9,9 @@ unsigned long previousMillis = 0;     // will store last time counter was update
 const long interval = 5000;           // interval at which to sleep (milliseconds)
 
 unsigned long USpreviousMillis = 0;     // will store last time counter was updated
-const long warmupInterval = 40000;           // interval at which to sleep (milliseconds)
+const long warmupInterval = 10000;           // interval at which to sleep (milliseconds)
+                                             //maxbotics sensor is ok with 1000, may require program modification to allow data collection at this interval
+                                             //floline sensor requires 40000
 
 
 int USpower = 7;
@@ -31,7 +33,7 @@ int total = 0;                  // the running total
 int prevTotal = 0;              // prior total
 uint8_t average = 0;            // the average
 
-uint8_t DataInterval=1;        //0 - 255 minutes (whole numbers only)
+uint8_t DataInterval=1;        //0 - 255 minutes (whole numbers only)  ...15 min intervals is desired
 uint32_t DataOffset=0;          //need to initialize this in setup by looking in flash memory
 uint32_t PrevUSDataOffset=0;      //need to initialize this in setup by looking in flash memory
 uint32_t PrevBattDataOffset=0;      //need to initialize this in setup by looking in flash memory
@@ -73,7 +75,7 @@ void loop() {
   }
   
   if(USread == true && DataStored == true && currentMillis - previousMillis >= interval) {
-    Serial.print("Sleeping for ");Serial.print(DataInterval);Serial.print(" minutes.");
+    Serial.print("Sleeping for ");Serial.print(DataInterval);Serial.print(" minutes...");
     delay(10);
 
     unsigned long SleepCycles = (DataInterval * 60000 - warmupInterval) / 8000;
