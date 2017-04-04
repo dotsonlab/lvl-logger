@@ -31,7 +31,7 @@ int total = 0;                  // the running total
 int prevTotal = 0;              // prior total
 uint8_t average = 0;            // the average
 
-uint8_t DataInterval=15;        //0 - 255 minutes (whole numbers only)
+uint8_t DataInterval=1;        //0 - 255 minutes (whole numbers only)
 uint32_t DataOffset=0;          //need to initialize this in setup by looking in flash memory
 uint32_t PrevUSDataOffset=0;      //need to initialize this in setup by looking in flash memory
 uint32_t PrevBattDataOffset=0;      //need to initialize this in setup by looking in flash memory
@@ -65,7 +65,7 @@ void loop() {
   
   if(USread == false && DataStored == false) {
     USreading();
-    //battVoltage();
+    battVoltage();
     if(USread == true && DataStored == false) {
       StoreData();
       delay(100);
@@ -73,14 +73,14 @@ void loop() {
   }
   
   if(USread == true && DataStored == true && currentMillis - previousMillis >= interval) {
-    Serial.println("Sleeping for XXXX.");
+    Serial.print("Sleeping for ");Serial.print(DataInterval);Serial.print(" minutes.");
     delay(10);
-    LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);
-    LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);
-    LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);
-    LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);
-    LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);
-    //delay(8000);
+
+    unsigned long SleepCycles = (DataInterval * 60000 - warmupInterval) / 8000;
+    for(int i = 0; i < SleepCycles; i++) {
+      LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);
+    }
+    Serial.flush();
     Serial.println("Awake for reading sensor!");
     USread = false;
     cmdAllow = true;
@@ -158,9 +158,9 @@ void StoreData() {
     flash.writeByte(DataOffset, batteryVoltage);
     PrevBattDataOffset = DataOffset;
     DataOffset++;
-    Serial.print("Writing ultrasonic reading");Serial.print(average);Serial.print(" to offset ");Serial.print(DataOffset-2);Serial.print(".  ");
+    Serial.print("Writing ultrasonic reading ");Serial.print(average);Serial.print(" to offset ");Serial.print(DataOffset-2);Serial.print(".  ");
     Serial.print("Last ultrasonic reading data was ");Serial.print(flash.readByte(PrevUSDataOffset));Serial.print(" stored at offset ");Serial.print(PrevUSDataOffset);Serial.println(".");
-    Serial.print("Writing battery voltage reading");Serial.print(batteryVoltage);Serial.print(" to offset ");Serial.print(DataOffset-1);Serial.print(".  ");
+    Serial.print("Writing battery voltage reading ");Serial.print(batteryVoltage);Serial.print(" to offset ");Serial.print(DataOffset-1);Serial.print(".  ");
     Serial.print("Last ultrasonic reading data was ");Serial.print(flash.readByte(PrevBattDataOffset));Serial.print(" stored at offset ");Serial.print(PrevBattDataOffset);Serial.println(".");
       
     Serial.println("Data Written!");
@@ -193,9 +193,10 @@ void serialEvent() {   //This interrupt will trigger when the data coming from t
       long timestamp = 0;
       long counter = 0;
       while(counter<DataOffset){
-        Serial.print("Time Stamp (min):\t");
-        Serial.print(timestamp);Serial.print("\t");
-        Serial.print("Volume (gal):\t"); Serial.println(flash.readByte(counter++), DEC);
+        Serial.print("Time Stamp (min):\t");Serial.print(timestamp);Serial.print("\t");
+        Serial.print("Volume (gal):\t"); Serial.print(flash.readByte(counter++), DEC);;Serial.print("\t");
+        float batteryReport = (float)flash.readByte(counter++) * 2 / 100;
+        Serial.print("Battery Voltage (V):\t"); Serial.println(batteryReport, 2);
         timestamp = timestamp + DataInterval;
       }
       Serial.print("Data read from flash memory until offset ");
